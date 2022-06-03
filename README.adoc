@@ -1,0 +1,257 @@
+:toc: macro
+
+= Integration and system test harness
+
+This is an example of integration and system test harness that can be used to test one or multiple products in a way that is as close as possible to production scenario including installation, setup, configuration, individual functions, end-to-end interaction and finally unsetup and removal.
+
+toc::[]
+
+== About build tool
+
+This example uses Gradle as a build tool. However, this is completely optional. Any other build tool like Maven or Ant can be used. Moreover, there can be no build tool at all. Build tool is just a convenient way to perform the following tasks:
+
+* Fetch
+** from a repository (like Nexus) kits of products that are to be tested
+** from a repository pre-baked test data like test database content
+** from Maven Central or custom Maven repository any additional libraries that are to be used in test scripts
+
+Test scripts are essentially UNIX Shell scripts that do not need any extra dependencies.
+However, complex test cases might require a more sophisticated language to express parsing, comparison, asserts, logic, interaction over various protocols.
+This example uses Groovy for such complex cases. With Groovy, you do not have to compile sources so the _building_ feature of the build tool is not really used. However, fetching Groovy libraries and any other libraries to be used in Groovy code of test cases - this is where build tool is helpful.
+
+== The harness
+
+The actual test harness can be found in the link:src/systemTest/scripts/harness/[] directory. This is the set of core libraries that are not specific to any particular product but represent the test framework itself.
+
+There are the following types of files:
+
+* `cfg_XXX.sh` - those are configuration files that usually just define a set of environment variables. Those variables can be exported if they should be seen by the product under test or can be left non exported if they should be seen only by test scripts.
+* `lib_XXX.sh` - those are libraries. Usually, libraries define a set of functions that can later be used in other libraries on test cases. You can also define here a set of _global_ variables that can be referenced from other libraries and test cases. If necessary, you have a full power of UNIX Shell to use conditions, loops, expansions and so on to calculate variables` values. This is helpful to avoid code duplication.
+* `XXX.sh` - those are tools that can be invoked to perform various tasks like cleanup the environment or run a set of tests.
+* `XXX.txt` - those are documentation files that are automatically generated from the content of other files:
+** link:src/systemTest/scripts/harness/tools.txt[tools.txt] - description of tools
+** link:src/systemTest/scripts/harness/libraries.txt[libraries.txt] - description of functions and global variables in libraries
+
+You can notice that some files in the harness (link:src/systemTest/scripts/harness/[]) have numbers in their names. This is used to define an order in which files are loaded. One configuration file could use variables defined by other configuration file. The same is for libraries. To make sure that a library does not try to reference a variable that was not yet defined, a number can be assigned to show when the file should be loaded. The order is the following:
+
+. Load all configuration files from harness according to their numbers
+. Load all product specific configuration files according to their numbers
+. Load all library files from harness according to their numbers
+. Load all product specific libraries according to their numbers
+
+This process called _bootstrapping_ (defined in link:src/systemTest/scripts/harness/lib_bootstrap.sh[]) is repeated for every tool and test case so all tools and test cases have access to all variables and functions defined in all configuration and library files.
+To _bootstrap_ test environment in a tool or test script, you usually add the following line in the beginning of your script:
+
+[source,bash]
+----
+. $(cd $(dirname $0) ; pwd)/harness/lib_bootstrap.sh || ( echo "ERROR: Cannot bootstrap" ; exit 1 )
+----
+
+You do not need to add this to configuration or library files. But you usually add this to test cases and any custom tools to ensure consistent environment. Any script that does bootstrap`s the environment will see all variables and functions regardless of from where or how it was invoked. This means you can run a tool or individual test case from terminal or from IDE or from Gradle and they'll all will work as expected.
+
+Bootstrapping process will also change the current directory and define a set of basic variables that define location of scripts, temporary directory and so on, so it does not matter from where and how tests were invoked. After bootstrapping, all things will be normalized.
+
+The following variables help to reference other files regardless of how a script was invoked:
+
+* `$work_dir` - Working directory. Or current directory after bootstrapping. It does not matter what was the current directory before the bootstrapping. You can customize this location via `$cfg_tests_work_dir` as shown in link:src/systemTest/scripts/cfg_02_dirs.sh[]. `$work_dir` can be used as a temporary directory that will be automatically cleaned after all tests or to save output of one script to be used by another one.
+* `$bin_dir` - Directory with test scripts.
+* `$harness_dir` - Directory with test harness scripts.
+* `$tmp_dir` - Directory for temporary files. You can use this instead of `$work_dir` for exceptionally temporary files.
+
+You can find description of other variables in link:src/systemTest/scripts/harness/libraries.txt[].
+
+== Product specific files
+
+Product specific configuration and library files are those that can be found in link:src/systemTest/scripts/[].
+
+Usually, there are the following types of files:
+
+* `cfg_XXX.sh` - configuration files defining product specific variables.
+* `lib_XXX.sh` - libraries defining product specific functions.
+* `test_XXX.sh` - individual test cases.
+* `test_XXX.groovy` - Groovy code for a particular test case that requires extra expressiveness.
+* `XXX.sh` - tools for extra convenience.
+* `begin_test_XXX.sh` - per-test case setup hook.
+* `end_test_XXX.sh` - per-test case cleanup/verification hook.
+* `hook_XXX.sh` - global cleanup hook.
+* `XXX.txt` - documentation files that are automatically generated from the content of other files:
+** link:src/systemTest/scripts/tests.txt[tests.txt] - summary of all test cases
+** link:src/systemTest/scripts/tools.txt[tools.txt] - description of tools
+** link:src/systemTest/scripts/libraries.txt[libraries.txt] - description of functions and global variables in libraries
+
+As with the harness, `cfg`, `lib` and `test` files are loaded or executed in the order of numbers in their name. Those numbers also help to split test cases into test sets.
+
+== Test sets
+
+When you have a lot of system test cases, running all of them might take a lot of time. You might want to split test cases into multiple sets grouping them by functionality and/or test type. With this, you can run all cases from one of the test sets. Or you can setup CI to run multiple tests sets in parallel on multiple machines. The more test sets you have, the greater parallelism can be.
+
+You can also have prepare and cleanup groups of test scripts. There are the following options:
+
+. Global prepare
+. Test set specific prepare
+. Per-test case prepare (hooks)
+. Per-test case cleanup/verification (hooks)
+. Test set specific cleanup
+. Global cleanup
+. Cleanup hooks
+
+Global prepare and global cleanup are good to install, setup, configure and then remove the product(s) under test. Test set specific prepare/cleanup are good for extra configuration that is needed by a particular group of test cases.
+
+You define test sets (including prepare and cleanup) by allocating intervals of numbers that are specified after `test_` scripts. Those intervals are defined in link:src/systemTest/scripts/cfg_tests.sh[]. The example, illustrates the following allocation:
+
+* 0xxx Global prepare
+* 2xxx Integration tests for real time event notification
+* 20xx Real time specific prepare
+* 2yxx Real time specific test cases
+* 29xx Real time specific cleanup
+* 3xxx Integration tests for resynchronization
+* 4xxx Integration tests for acknowledgment
+* 6xxx Integration tests for commands
+* 8xxx Integration tests for multiple EMS instances
+* 9xxx Common cleanup
+
+All this can be changed and customized to define as many test sets as needed.
+
+A _successful_ test set run will have the following:
+
+. For each test script (including global or test set specific prepare and cleanup but excluding cleanup hooks):
+.. Before each test script run every per-test case prepare (hooks)
+.. Run test script
+.. After each test script run every per-test case cleanup/verification (hooks)
+. Order in which test scripts run:
+.. All scripts once from global prepare
+.. All scripts once from test set specific prepare
+.. All est cases from a particular test set
+.. All scripts from test set specific cleanup
+.. All scripts from global cleanup
+.. All cleanup hooks
+
+Non-zero exit code is considered an error and will terminate test run.
+
+Note that cleanup (global and per-set) are not run in case of test failures.
+This helps to inspect the environment and debug product or test.
+To cleanup the environment in case of failures, there are hooks.
+
+== Hooks
+
+There are two types of hooks:
+
+* Global cleanup hooks
+* Per-case setup/cleanup hooks
+
+== Global cleanup hooks
+
+Global cleanup hooks are run thanks to link:src/systemTest/scripts/harness/lib_05_trap.sh[] and `execute_cleanup_hooks` that uses `trap` functionality of shell. Global hooks help to cleanup and recover the environment after test failures and prepare it to the next test run. If you do any changes outside of `$work_dir` or `$tmp_dir` then you should add a global hook that will revert this change.
+
+Global hooks should be resilient. They can be run before any tests are run or when some tests have already been run or when all tests have been run. So expect that action to be reverted has not happened yet.
+
+You can see here several examples:
+
+* link:src/systemTest/scripts/hook_12_example_productA_stop.sh[]
+* link:src/systemTest/scripts/hook_51_example_productB_remove.sh[]
+* link:src/systemTest/scripts/hook_65_example_cleanup_kafka.sh[]
+
+Also, global cleanup hooks could be used to collect diagnostic information that might aid troubleshooting. For example, when you run system tests on CI, you might want to collect logs (that are outside of job working directory or some other system information). The following examples illustrate this:
+
+* link:src/systemTest/scripts/hook_00_port_used_debug.sh[]
+* link:src/systemTest/scripts/hook_20_example_productB_collect_logs.sh[]
+
+If you run individual test cases one-by-one then global cleanup hooks are not run at all to let you troubleshoot individual test failure. However, when you run whole test set then global cleanup hooks run both in case of success and in case of failure. A failure during execution of one global cleanup hook is ignored to let a chance to another global cleanup to do its job.
+
+You can control global cleanup hooks via `do_traps` variable.
+
+== Per test case hooks
+
+link:src/systemTest/scripts/harness/lib_06_test.sh[] defines `test_case_begin` and `test_case_end` functions that should be used to mark beginning and end of each test case. Besides other things, those functions also run all `begin_test_XXX.sh` and `end_test_XXX.sh` scripts when each test case begins and ends.
+
+This can be used to do setup/cleanup per test case. Also, this can be used to run a set of checks after every test case.
+
+The following pair demonstrates how to rememeber log file size and then verify if errors were reported in the log file. Any new error is found, this is considered product defect and the test is marked as failed. For a particular test case that verifies product`s reaction on invalid data where product _should_ generate an error, we can override this check by defining a variable (`$test_case_productA_log_file_ignore_mask`) in a test case script that will tell which error message should be ignored. Unexpected error messages will still fail the test case.
+
+* link:src/systemTest/scripts/begin_test_01_example_productA_remember_log_size.sh[]
+* link:src/systemTest/scripts/end_test_01_example_productA_check_log_errors.sh[]
+
+The following examples illustrate per-test case cleanup:
+
+* link:src/systemTest/scripts/end_test_10_kill_registered.sh[]
+* link:src/systemTest/scripts/end_test_50_delete_temp_files.sh[]
+
+== Test cases
+
+A usual test case has the following structure:
+
+. Bootstrapping the environment to be able to run individual test cases
++
+[source,bash]
+----
+#!/usr/bin/env bash
+. $(cd $(dirname $0) ; pwd)/harness/lib_bootstrap.sh || ( echo "ERROR: Cannot bootstrap" ; exit 1 )
+----
+. Header that invokes per-case begin hook and supplies description to report and specification. Of course, the richer is the description, the easier it is to maintain the test.
++
+[source,bash]
+----
+test_case_begin "Resynchronization: translation"
+test_case_goal "Check that productB correctly translates alarms during resynchronization"
+test_case_type "Main functionality"
+----
+. An optional condition when to run this test case. This is useful when you have many similar products and you have a template set of tests. When not all products support all features, you can skip some of the tests based on which functions are supported in the particular product. Also, this is helpful to setup compatibility testing between multiple versions of multiple products when some functions are not present in all versions of the product.
++
+[source,bash]
+----
+test_case_when "$HAS_RESYNC"
+----
+. Beginning of a phase. Often you have _Preparation_ -> _Verification_ -> _Cleanup_ separation and it helps to show which phase particular step belongs to.
++
+[source,bash]
+----
+phase "Preparation"
+----
+. One or more _annotated_ actions or checks (or calls to library functions that define them). It is important that actions and checks are annotated. This helps to keep tests maintainable and generate specification. Products live for decades and it will greatly help maintenance engineer if enough explanation is provided
++
+[source,bash]
+----
+annotate_check "Check there is only one kit file"
+test $(ls -1 "$productA_kit_dir/"*.tar.gz | wc -l) -eq 1
+
+annotate_action "Unpack productA tar archive"
+exec_expect_ok "tar zxf $productA_kit_dir/*.tar.gz -C $productA_install_root"
+----
+. Test case footer that triggers per-test end hook and help to generate specification
++
+[source,bash]
+----
+test_case_end
+----
+
+Tests are executed with `set -o nounset` and `set -o errexit` for extra trust. This means that tests will break if any command or function exits with non-zero exit code (much like `then:` block is Spock Framework).
+
+There are numerous library functions that facilitate easier writing of trustable and easy to troubleshoot test cases. You can find their description in link:src/systemTest/scripts/harness/libraries.txt[].
+
+The following examples illustrate typical test cases:
+
+* link:src/systemTest/scripts/test_0200_prepare_productA_kit_install.sh[]
+* link:src/systemTest/scripts/test_0402_prepare_productA_config.sh[]
+* link:src/systemTest/scripts/test_0403_prepare_productA_start.sh[]
+* link:src/systemTest/scripts/test_9500_remove_productA.sh[]
+
+== Groovy scripts
+
+UNIX Shell and core tools are just enough in many cases. However, there are times when more expressive languages are easier to use. One of such languages is Groovy. The good thing about Groovy is that it comes with an easy to use standard library that makes it very easy to work with files, XML, JSON, HTML and a lot of other things. Since Groovy is Java that you do not have to compile, you can also make use of rich Java ecosystem.
+
+While completely optional, the test harness makes it very easy to use Groovy scripts thanks to link:src/systemTest/scripts/lib_80_simulator.sh[]. Usually, you just add a script that has the same base name as your `.sh` test case but with `.groovy` extension. Then you keep bootstrapping, headers and footer in `.sh` script but implement your actions and check in a .`groovy` script. To call `.groovy` script from `.sh` script you use `run_simulator` function that prepares the environment for the Groovy and runs the script with the same name.
+
+The following is an example of `.sh` script that uses Groovy to implement actions and checks: link:src/systemTest/scripts/test_2102_rt_raise_max_fields.sh[]
+
+And here is the accompanying `.groovy` script that implements the actual test logic: link:src/systemTest/scripts/test_2102_rt_raise_max_fields.groovy[]
+
+You can see that the Groovy script uses `Simulator` class. This class is kept as a Groovy script in link:src/systemTest/scripts/simulator/Simulator.groovy[].
+You do not need to compile this or other Groovy scripts. This makes it easier to maintain tests.
+
+There are few library classes that facilitate writing actions and checks with Groovy:
+
+* link:src/systemTest/scripts/simulator/Exec.groovy[]
+* link:src/systemTest/scripts/simulator/LibCheck.groovy[]
+* link:src/systemTest/scripts/simulator/LibWait.groovy[]
+
+However, Groovy itself is rich and you can use any Java library like link:http://hamcrest.org/JavaHamcrest/tutorial[Hamcrest] matchers or link:https://github.com/lukas-krecan/JsonUnit[JsonUnit]. Of course, you can use link:https://camel.apache.org/[Camel] to quickly tap into or simulate other systems.

@@ -1,0 +1,117 @@
+Following tools are available:
+
+harness/execute_cmd.sh :
+    Runs command in test environment
+        Usage: execute_cmd.sh command
+        Example: ./execute_cmd.sh '$nom_admin --list-container'
+
+harness/extract_info.sh :
+    Builds report about tests.
+		    --text
+		    	Generate tests overview in plain text format (default mode)
+		    --ts
+		    	Generate test specification (HTML)
+		    --tr
+		        Generate test report (HTML)
+		    --default-filter
+		        Use default filter of run_tests.sh.
+		    --quiet
+		        Do not print progress messages, only errors.
+		    --<filter name>
+		        Specify filter for tests (same as for run_tests.sh).
+
+harness/generate_sts_str.sh :
+    Generates STS and STR.
+   
+    Usage:
+    generate_sts_str.sh
+   
+    The structure of STS and STR is described by cfg_tests.sh
+    that should contain one or more records of the following format:
+    #report;order;testsetname;testsettitle
+    Where
+    order - a number to order chapters in STS/STR
+    testsetname - name of test set, the same as to be passed to runtests.sh
+    testsettitle - human readable title of the test
+
+harness/generate_summary_doc.sh :
+    Generates tools, libraries and tests documentation.
+   
+    See tools.txt, libraries.txt and tests.txt.
+    Strings that contain three # are considered documentation.
+   
+    Usage:
+    generate_summary_doc.sh
+		    --quiet
+		        Do not print progress messages, only errors.
+
+harness/libunittest.sh :
+    A library for unit testing shell libraries.
+   
+    If currently executed file name starts with lib_
+    then all functions defined in that file that
+    start with _test_ will be executed.
+    Testing stops if any of these functions fails.
+    Fails means that any command within these functions
+    returns unhandled non-zero exit code or undefined
+    variable is used.
+    Be warned that no other libraries will be automatically
+    loaded except libs specified in _test_dependencies.
+    _test_dependencies is an optional variable that could be
+    to a space separated list of libraries that should
+    be loaded before any test function is run.
+    Only suffix of dependency library needs to be specified.
+    That means that if library under test requires
+    lib_07_log.sh to be loaded first then you
+    should set _test_dependencies="log".
+   
+    For this library to correctly find and execute all
+    test functions, it must be loaded as very last
+    statement of the library under test.
+
+harness/recover.sh :
+    Cleanup environment after test failure.
+
+harness/resource_monitor.sh :
+    Monitors resource usage and plots graph
+        Usage:
+            To start
+                $harness_dir/resource_monitor.sh record reporting_period_sec > data_file &
+                monitor_pid=$!
+                register_pid $monitor_pid
+            To stop
+                kill_pid $monitor_pid
+            To plot graph using gnuplot
+                $harness_dir/resource_monitor.sh plot data_file
+
+harness/run_tests.sh :
+    Run all or group of tests.
+    To disable cleanup on exit set do_traps environment variable to false:
+        do_traps=false harness/run_tests.sh
+    To run specific test that requires preparation or resume testing from some point
+    use something like the following:
+        do_traps=false harness/run_tests.sh --prepare && harness/run_tests.sh --from 3500
+		    --skip <pattern>
+		        Skip tests matching specified pattern
+		    --stop-before <test number>
+		        Stop running tests before specified one.
+		        Traps are automatically disabled.
+		    --from <test number>
+		        Skip tests before specified one
+		    --dry
+		        Print tests names but dont run anything
+		    --show-filter
+		        Shows list of tests to be run in shell friendly format.
+		        Nothing gets actually run.
+		    --list
+		        Shows all available test filters
+		    --help
+		        Shows usage information
+		grep "   " $0 | grep -v 'grep "   "' | cut -d "#" -f 4-
+		    --show-user test_name_pattern
+		        Show user under which to run specified test
+		    --<filter name>
+		        Run tests defined by specified filter.
+		        Filters should be specified in cfg_tests.sh.
+		        See description of cfg_tests.sh for filters details.
+

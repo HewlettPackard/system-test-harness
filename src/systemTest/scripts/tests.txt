@@ -1,0 +1,455 @@
+===============================
+Integration tests
+===============================
+
+Known bugs that tests are aware of:
+
+TEST: test_0000_profile_bootstrap.sh
+
+	TEST CASE: Profile test infrastructure
+		GOAL:   Measure what takes time during system tests
+		TYPE:   Infrastructure
+
+TEST: test_0200_prepare_productA_kit_install.sh
+
+	TEST CASE: ProductA kit installation
+		GOAL:   Check that productA kit can be installed
+		TYPE:   Main functionality
+		PHASE:  Preparation
+		CHECK:  Check kit file present
+		CHECK:  Check there is only one kit file
+		PHASE:  Verification
+		ACTION: Unpack productA tar archive
+		ACTION: List content of productA tar archive
+
+TEST: test_0200_prepare_productB_kit_install.sh
+
+	TEST CASE: ProductB kit installation
+		GOAL:   Check that productB kit can be installed
+		TYPE:   Main functionality
+		PHASE:  Preparation
+		ACTION: Cleanup a directory where productB kit distributable archive will be extracted
+		CHECK:  Check kit file present
+		CHECK:  Check there is only one kit file
+		CHECK:  Check Platform directory present
+		PHASE:  Verification
+		ACTION: Unpack ProductB tar archive
+		ACTION: List content of ProductB tar archive
+		ACTION: Install ProductB into Platform non interactively
+
+TEST: test_0211_prepare_productB_config.sh
+
+	TEST CASE: Configure productB connectivity
+		GOAL:   Adjust ProductB connectivity parameters
+		TYPE:   Main functionality
+		PHASE:  Preparation
+		ACTION: Configure productB: UMB server
+		ACTION: Restart productB for the configuration changes to take effect
+
+TEST: test_0220_prepare_productC_kit_install.sh
+
+	TEST CASE: ProductC kit installation
+		GOAL:   Check that productC kit can be installed
+		TYPE:   Main functionality
+		PHASE:  Preparation
+		ACTION: Cleanup a directory where productC kit distributable archive will be extracted
+		CHECK:  Check kit file present
+		CHECK:  Check there is only one kit file
+		CHECK:  Check Platform directory present
+		PHASE:  Verification
+		ACTION: Unpack productC tar archive
+		ACTION: List content of productC tar archive
+		ACTION: Install productC into Platform non interactively
+
+TEST: test_0401_prepare_simulator.sh
+
+	TEST CASE: Prepare simulator
+		GOAL:   Prepare simulator
+		TYPE:   Infrastructure
+		PHASE:  Preparation
+		ACTION: Fix classloader issues of simulator caused by compiled/interpreted hell
+
+TEST: test_0402_prepare_productA_config.sh
+
+	TEST CASE: Configure productA connectivity
+		GOAL:   Adjust productA connectivity parameters
+		TYPE:   Main functionality
+		PHASE:  Preparation
+		ACTION: Configure productA: network host where to send resync requests to EMS
+		ACTION: Configure productA: network port where to send resync requests to EMS
+		ACTION: Configure productA: UMB server
+
+TEST: test_0403_prepare_productA_start.sh
+
+	TEST CASE: Start productA
+		GOAL:   Start productA
+		TYPE:   Main functionality
+		PHASE:  Preparation
+		ACTION: Start productA
+
+TEST: test_2102_rt_raise_max_fields.sh
+
+	TEST CASE: Real time events translation: maximum fields
+		GOAL:   Check that productB can translate and forward events with typical set of fields provided by EMS
+		TYPE:   Main functionality
+		PHASE:  Preparation
+		ACTION: Cleanup OC for first EMS instance
+		CHECK:  Check OC for first EMS instance is in good shape
+		PHASE:  Verification
+		ACTION: Send raise alarm notification for never acknowledged alarm from EMS simulator
+		CHECK:  Check that AO was created in OC with correct attribute values
+		CHECK:  Check mandatory Agent Alarm Identifier has been mapped correctly
+		CHECK:  Check mandatory Agent Entity has been mapped correctly
+		CHECK:  Check mandatory Alarm Type has been mapped correctly
+		CHECK:  Check mandatory Managed Object Identifier has been mapped correctly
+		CHECK:  Check mandatory Perceived Severity has been mapped correctly
+		CHECK:  Check mandatory Probable Cause has been mapped correctly
+		CHECK:  Check optional Notification Identifier has been mapped correctly
+		CHECK:  Check optional Correl Notif Info has been mapped correctly
+		CHECK:  Check mandatory Original Event Time has been mapped correctly
+		CHECK:  Check optional Specific Problems has been mapped correctly
+		CHECK:  Check optional Additional Text has been mapped correctly
+		CHECK:  Check Additional Text contains enter time stamp
+		CHECK:  Check Additional Text contains exit time stamp
+		CHECK:  Check that State is Outstanding
+		CHECK:  Check that Acknowledgement User Identifier is not set
+		CHECK:  Check that Acknowledgement Time Stamp is not set
+		CHECK:  Check optional Equipment Type has been mapped correctly
+		CHECK:  Check optional Site Location has been mapped correctly
+		CHECK:  Check optional Region Location has been mapped correctly
+		CHECK:  Check optional Vendor Name has been mapped correctly
+		CHECK:  Check optional Technology Domain has been mapped correctly
+		CHECK:  Check optional Equipment Model has been mapped correctly
+		CHECK:  Check optional Outage Flag has been mapped correctly
+		PHASE:  Cleanup
+		ACTION: Cleanup OC for first EMS instance
+
+TEST: test_2120_rt_clear.sh
+
+	TEST CASE: Real time events translation: alarm clearance
+		GOAL:   Check that productA can produce proper clearance events that correlate well
+		TYPE:   Main functionality
+		PHASE:  Preparation
+		ACTION: Cleanup OC for first EMS instance
+		CHECK:  Check OC for first EMS instance is in good shape
+		PHASE:  Verification
+		ACTION: Set productB to flow tracing to collect troubleshooting information
+		ACTION: Remember ProductB java log file size
+		ACTION: Create backup copy of productB log4j configuration file
+		ACTION: Configure productB log4j to trace incoming alarms
+		ACTION: Dump productB java log file to collect troubleshooting information
+		ACTION: Dump productB trace file to collect troubleshooting information
+		ACTION: Send an alarm
+		CHECK:  Check that AO with Perceived Severity = Minor was created in OC
+		CHECK:  Check optional Additional Text has been mapped correctly
+		ACTION: Send clearance for the alarm that contains additional text change
+		CHECK:  Check AO in OC has been cleared
+		CHECK:  Check AO in OC is cleared via Clearance Report Flag = True but Original Severity and Perceived Severity is preserved
+		CHECK:  Check original Additional Text has not changed
+		CHECK:  Check Original Event Time did not change
+		CHECK:  Check Event Time did not change
+		CHECK:  Check Clearance Time Stamp is set to eventTime in notifyClearedAlarm
+		PHASE:  Cleanup
+		ACTION: Restore original productB log4j configuration file
+		ACTION: Stop productB java log dumping
+		ACTION: Stop productB log dumping
+		ACTION: Cleanup OC for first EMS instance
+
+TEST: test_3110_resync_one_chunk_translation.sh
+
+	TEST CASE: Resynchronization: translation
+		GOAL:   Check that productB correctly translates alarms during resynchronization
+		TYPE:   Main functionality
+		PHASE:  Preparation
+		ACTION: Cleanup OC for first EMS instance
+		CHECK:  Check OC for first EMS instance is in good shape
+		PHASE:  Verification
+		ACTION: Configure EMS simulator to expect single request and respond with a batch of never acknowledged alarms
+		ACTION: Initiate OC resynchronization
+		CHECK:  Check all AO were created in OC
+		CHECK:  Check first alarm is mapped correctly
+		CHECK:  Check mandatory Agent Alarm Identifier has been mapped correctly
+		CHECK:  Check mandatory Agent Entity has been mapped correctly
+		CHECK:  Check mandatory Alarm Type has been mapped correctly
+		CHECK:  Check mandatory Managed Object Identifier has been mapped correctly
+		CHECK:  Check mandatory Perceived Severity has been mapped correctly
+		CHECK:  Check mandatory Probable Cause has been mapped correctly
+		CHECK:  Check optional Notification Identifier has been mapped correctly
+		CHECK:  Check optional Correl Notif Info has been mapped correctly
+		CHECK:  Check mandatory Original Event Time has been mapped correctly
+		CHECK:  Check optional Specific Problems has been mapped correctly
+		CHECK:  Check optional Additional Text has been mapped correctly
+		CHECK:  Check Additional Text contains enter time stamp
+		CHECK:  Check Additional Text contains exit time stamp
+		CHECK:  Check optional Equipment Type has been mapped correctly
+		CHECK:  Check optional Site Location has been mapped correctly
+		CHECK:  Check optional Region Location has been mapped correctly
+		CHECK:  Check optional Vendor Name has been mapped correctly
+		CHECK:  Check optional Technology Domain has been mapped correctly
+		CHECK:  Check optional Equipment Model has been mapped correctly
+		CHECK:  Check optional Outage Flag has been mapped correctly
+		CHECK:  Check that State is Outstanding
+		CHECK:  Check that Acknowledgement User Identifier is not set
+		CHECK:  Check that Acknowledgement Time Stamp is not set
+		CHECK:  Check second alarm is mapped correctly
+		CHECK:  Check mandatory Agent Alarm Identifier has been mapped correctly
+		CHECK:  Check mandatory Agent Entity has been mapped correctly
+		CHECK:  Check mandatory Alarm Type has been mapped correctly
+		CHECK:  Check mandatory Managed Object Identifier has been mapped correctly
+		CHECK:  Check mandatory Perceived Severity has been mapped correctly
+		CHECK:  Check mandatory Probable Cause has been mapped correctly
+		CHECK:  Check optional Notification Identifier has been mapped correctly
+		CHECK:  Check optional Correl Notif Info has been mapped correctly
+		CHECK:  Check mandatory Original Event Time has been mapped correctly
+		CHECK:  Check optional Specific Problems has been mapped correctly
+		CHECK:  Check optional Additional Text has been mapped correctly
+		CHECK:  Check Additional Text contains enter time stamp
+		CHECK:  Check Additional Text contains exit time stamp
+		CHECK:  Check optional Equipment Type has been mapped correctly
+		CHECK:  Check optional Site Location has been mapped correctly
+		CHECK:  Check optional Region Location has been mapped correctly
+		CHECK:  Check optional Vendor Name has been mapped correctly
+		CHECK:  Check optional Technology Domain has been mapped correctly
+		CHECK:  Check optional Equipment Model has been mapped correctly
+		CHECK:  Check optional Outage Flag has been mapped correctly
+		CHECK:  Check that State is Outstanding
+		CHECK:  Check that Acknowledgement User Identifier is not set
+		CHECK:  Check that Acknowledgement Time Stamp is not set
+		PHASE:  Cleanup
+		ACTION: Cleanup OC for first EMS instance
+
+TEST: test_3130_resync_multi_chunk.sh
+
+	TEST CASE: Resynchronization: multi chunk support
+		GOAL:   Check that productB can perform multi chunk resynchronization including iterator handling
+		TYPE:   Main functionality
+		PHASE:  Preparation
+		ACTION: Cleanup OC for first EMS instance
+		CHECK:  Check OC for first EMS instance is in good shape
+		PHASE:  Verification
+		ACTION: Start simulator that will answer on getAlarmList directive with 4 chunks: first one is empty and each next carries a single alarm
+		ACTION: Initiate OC resynchronization
+		CHECK:  Check that all 3 AO have been created in OC
+		CHECK:  Check that AOs have been mapped from corresponding active alarms
+		PHASE:  Cleanup
+		ACTION: Cleanup OC for first EMS instance
+
+TEST: test_4111_rt_ack_unack_max_fields.sh
+
+	TEST CASE: Upward acknowledgment: acknowledge and unacknowledge
+		GOAL:   Check that productB can translate and forward upward acknowledgment events from EMS
+		TYPE:   Main functionality
+		PHASE:  Preparation
+		ACTION: Cleanup OC for first EMS instance
+		CHECK:  Check OC for first EMS instance is in good shape
+		PHASE:  Verification
+		ACTION: Run notify domain to collect troubleshooting information
+		ACTION: Set productB to flow tracing to collect troubleshooting information
+		ACTION: Remember ProductB java log file size
+		ACTION: Create backup copy of productB log4j configuration file
+		ACTION: Configure productB log4j to trace incoming alarms
+		ACTION: Dump productB java log file to collect troubleshooting information
+		ACTION: Dump productB trace file to collect troubleshooting information
+		ACTION: Send raise alarm event from EMS simulator
+		ACTION: Wait for the alarm to be received in OC
+		CHECK:  Check AO Event Time is as in original alarm
+		CHECK:  Check that State is Outstanding
+		CHECK:  Check that Acknowledgement User Identifier is not set
+		CHECK:  Check that Acknowledgement Time Stamp is not set
+		CHECK:  Check original Additional Text has been mapped correctly
+		ACTION: Send acknowledge alarm event from EMS simulator
+		ACTION: Wait for the alarm to become Acknowledged in OC
+		CHECK:  Check AO Event Time is still as in original alarm
+		CHECK:  Check that State is Acknowledged
+		CHECK:  Check that Acknowledgement User Identifier is same as in up ack notification
+		CHECK:  Check that Acknowledgement Time Stamp is same as in up ack notification
+		CHECK:  Check original Additional Text has not changed
+		ACTION: Send unacknowledge alarm event from EMS simulator
+		ACTION: Wait for the alarm to become Outstanding in OC
+		CHECK:  Check AO Event Time is still as in original alarm
+		CHECK:  Check that State is Outstanding
+		CHECK:  Check that Acknowledgement User Identifier is same as in up unack notification
+		CHECK:  Check that Acknowledgement Time Stamp is same as in up unack notification
+		CHECK:  Check original Additional Text has not changed
+		PHASE:  Cleanup
+		ACTION: Restore original productB log4j configuration file
+		ACTION: Stop productB java log dumping
+		ACTION: Stop productB log dumping
+		ACTION: Stop notify domain
+		ACTION: Cleanup OC for first EMS instance
+
+TEST: test_4331_downack_ack_unack_max_args.sh
+
+	TEST CASE: Downward acknowledgment: acknowledge and unacknowledge
+		GOAL:   Check that productA can acknowledge and unacknowledge an alarm on EMS
+		TYPE:   Main functionality
+		PHASE:  Preparation
+		ACTION: Cleanup OC for first EMS instance
+		CHECK:  Check OC for first EMS instance is in good shape
+		PHASE:  Verification
+		ACTION: Run notify domain to collect troubleshooting information
+		ACTION: Set productB to flow tracing to collect troubleshooting information
+		ACTION: Remember ProductB java log file size
+		ACTION: Create backup copy of productB log4j configuration file
+		ACTION: Configure productB log4j to trace incoming alarms
+		ACTION: Dump productB java log file to collect troubleshooting information
+		ACTION: Dump productB trace file to collect troubleshooting information
+		ACTION: Configure EMS simulator to respond to a request to acknowledgment alarm and indicate operation was a success
+		ACTION: Send raise alarm event from EMS simulator
+		ACTION: Wait for the alarm to be received in OC
+		CHECK:  Check AO Event Time is as in original alarm
+		CHECK:  Check that State is Outstanding
+		CHECK:  Check that Acknowledgement User Identifier is not set
+		CHECK:  Check that Acknowledgement Time Stamp is not set
+		CHECK:  Check original Additional Text has been mapped correctly
+		ACTION: Execute Acknowledge directive
+		ACTION: Wait for the alarm to become Acknowledged in OC
+		CHECK:  Check that AO that became acknowledged is the same which was requested to be acknowledged
+		CHECK:  Check AO Event Time is still as in original alarm
+		CHECK:  Check that State is Acknowledged
+		CHECK:  Check that Acknowledgement User Identifier is set to the values specified in userId argument
+		CHECK:  Check that Acknowledgement Time Stamp is set around now rather as no Timestamp argument is specified
+		CHECK:  Check original Additional Text has not changed
+		ACTION: Check EMS simulator has received one request to acknowledged alarm
+		ACTION: Configure EMS simulator to respond to a request to unacknowledgment alarm and indicate operation was a success
+		ACTION: Execute Unacknowledge directive
+		ACTION: Wait for the alarm to become Outstanding in OC
+		CHECK:  Check that AO that became acknowledged is the same which was requested to be acknowledged
+		CHECK:  Check AO Event Time is still as in original alarm
+		CHECK:  Check that State is Outstanding
+		CHECK:  Check that Acknowledgement User Identifier is same as specified in UserId argument
+		CHECK:  Check that Acknowledgement Time Stamp has become around time when alarm has request to unacknowledge
+		CHECK:  Check original Additional Text has not changed
+		ACTION: Check EMS simulator has received one request to acknowledged alarm
+		PHASE:  Cleanup
+		ACTION: Restore original productB log4j configuration file
+		ACTION: Stop productB java log dumping
+		ACTION: Stop productB log dumping
+		ACTION: Stop notify domain
+		ACTION: Cleanup OC for first EMS instance
+
+TEST: test_6101_commands_showstatus_connected.sh
+
+	TEST CASE: Commands: ShowStatus when connected
+		GOAL:   Check that ShowStatus returns connected status when productA has connection to EMS
+		TYPE:   Main functionality
+		ACTION: Start simulator that will send an event then call ShowStatus on productA and check that productA is connected to EMS
+
+TEST: test_6155_commands_clearstatus.sh
+
+	TEST CASE: Commands: ClearStatus
+		GOAL:   Check that ClearStatus command can be sent and processed by productA
+		TYPE:   Main functionality
+		ACTION: Send an event from EMS to have something in statistics
+		ACTION: Wait for alarm to be received
+		ACTION: Call ClearStatus directive on global class instance related to productA to clear statistics
+		CHECK:  Check reply from productA indicates success
+		ACTION: Send an alarm from EMS to have something in statistics
+		ACTION: Wait for alarm to be received
+		ACTION: Call ShowStatus directive on global class instance related to productA to get its statistics
+		CHECK:  Check statistics tells about last alarm only
+
+TEST: test_8210_multi_ems_rt_two_ems_instances.sh
+
+	TEST CASE: Real time events: support for multiple EMS instances
+		GOAL:   Check that productB can receive and process alarms from multiple EMS using same productC
+		TYPE:   Main functionality
+		PHASE:  Preparation
+		ACTION: Prepare 3 operation contexts: first and second collecting from different instances of global class coming from productC and third collecting from instance of default global class of ProductB
+		ACTION: Cleanup OCs for all EMS instances
+		PHASE:  Verification
+		ACTION: Send an alarm from first EMS instance
+		ACTION: Send raise alarm notification for never acknowledged alarm from EMS simulator
+		CHECK:  Check that AO was created in OC with correct attribute values
+		CHECK:  Check mandatory Agent Alarm Identifier has been mapped correctly
+		CHECK:  Check mandatory Agent Entity has been mapped correctly
+		CHECK:  Check mandatory Alarm Type has been mapped correctly
+		CHECK:  Check mandatory Managed Object Identifier has been mapped correctly
+		CHECK:  Check mandatory Perceived Severity has been mapped correctly
+		CHECK:  Check mandatory Probable Cause has been mapped correctly
+		CHECK:  Check optional Notification Identifier has been mapped correctly
+		CHECK:  Check optional Correl Notif Info has been mapped correctly
+		CHECK:  Check mandatory Original Event Time has been mapped correctly
+		CHECK:  Check optional Specific Problems has been mapped correctly
+		CHECK:  Check optional Additional Text has been mapped correctly
+		CHECK:  Check Additional Text contains enter time stamp
+		CHECK:  Check Additional Text contains exit time stamp
+		CHECK:  Check that State is Outstanding
+		CHECK:  Check that Acknowledgement User Identifier is not set
+		CHECK:  Check that Acknowledgement Time Stamp is not set
+		CHECK:  Check optional Equipment Type has been mapped correctly
+		CHECK:  Check optional Site Location has been mapped correctly
+		CHECK:  Check optional Region Location has been mapped correctly
+		CHECK:  Check optional Vendor Name has been mapped correctly
+		CHECK:  Check optional Technology Domain has been mapped correctly
+		CHECK:  Check optional Equipment Model has been mapped correctly
+		CHECK:  Check optional Outage Flag has been mapped correctly
+		CHECK:  Check that first OC collecting alarms from first EMS instance contains an alarm
+		ACTION: Send an alarm from second EMS instance and verify it was received in OC for second EMS instance
+		ACTION: Send raise alarm notification for never acknowledged alarm from EMS simulator
+		CHECK:  Check that AO was created in OC with correct attribute values
+		CHECK:  Check mandatory Agent Alarm Identifier has been mapped correctly
+		CHECK:  Check mandatory Agent Entity has been mapped correctly
+		CHECK:  Check mandatory Alarm Type has been mapped correctly
+		CHECK:  Check mandatory Managed Object Identifier has been mapped correctly
+		CHECK:  Check mandatory Perceived Severity has been mapped correctly
+		CHECK:  Check mandatory Probable Cause has been mapped correctly
+		CHECK:  Check optional Notification Identifier has been mapped correctly
+		CHECK:  Check optional Correl Notif Info has been mapped correctly
+		CHECK:  Check mandatory Original Event Time has been mapped correctly
+		CHECK:  Check optional Specific Problems has been mapped correctly
+		CHECK:  Check optional Additional Text has been mapped correctly
+		CHECK:  Check Additional Text contains enter time stamp
+		CHECK:  Check Additional Text contains exit time stamp
+		CHECK:  Check that State is Outstanding
+		CHECK:  Check that Acknowledgement User Identifier is not set
+		CHECK:  Check that Acknowledgement Time Stamp is not set
+		CHECK:  Check optional Equipment Type has been mapped correctly
+		CHECK:  Check optional Site Location has been mapped correctly
+		CHECK:  Check optional Region Location has been mapped correctly
+		CHECK:  Check optional Vendor Name has been mapped correctly
+		CHECK:  Check optional Technology Domain has been mapped correctly
+		CHECK:  Check optional Equipment Model has been mapped correctly
+		CHECK:  Check optional Outage Flag has been mapped correctly
+		CHECK:  Check that second OC collecting alarms from second EMS instance contains an alarm
+		PHASE:  Cleanup
+		ACTION: Cleanup OCs for all EMS instances
+
+TEST: test_9500_remove_productA.sh
+
+	TEST CASE: ProductA kit removal
+		GOAL:   Check that productA kit can be removed
+		TYPE:   Main functionality
+		PHASE:  Preparation
+		CHECK:  Check productA is installed
+		PHASE:  Verification
+		ACTION: Stop productA
+		ACTION: Store productA log files for tests results analysis
+		ACTION: Remove productA installation directory
+
+TEST: test_9790_remove_productC.sh
+
+	TEST CASE: ProductC kit removal
+		GOAL:   Check that productC kit can be removed
+		TYPE:   Main functionality
+		PHASE:  Verification
+		ACTION: Remove productC distributable files before executing pkgrm
+		ACTION: Remove productC from Platform non interactively without adminFile
+		ACTION: Perform steps from installation guide: Remove: Remove productC configuration directory
+
+TEST: test_9795_remove_productB.sh
+
+	TEST CASE: ProductB kit removal
+		GOAL:   Check that productB kit can be removed
+		TYPE:   Main functionality
+		PHASE:  Preparation
+		CHECK:  Check productB is installed
+		PHASE:  Verification
+		ACTION: Remove productB distributable files before executing pkgrm
+		ACTION: Remove productB from Platform non interactively without adminFile
+		ACTION: Perform steps from installation guide: Remove: Remove productB advanced configuration and customization directories
+		ACTION: Store ProductB trace files for tests results analysis
+		ACTION: Perform steps from installation guide: Remove: Remove productB trace files
+		ACTION: Perform steps from installation guide: Remove: Remove productB data directory
+		CHECK:  Check that exit code is not zero
+

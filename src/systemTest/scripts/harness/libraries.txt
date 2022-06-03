@@ -1,0 +1,468 @@
+Following libraries are available:
+
+harness/cfg_50_dirs.sh :
+    Configuration of directories.
+    $work_dir: Working directory.
+    Products under test are installed in this directory.
+    Any temporal files also are created there.
+    $tmp_dir: directory for temporary files
+    $fake_root: Path to be used instead of /
+    If original path was /opt/UMB then $fake_root/opt/UMB should be used instead
+    $rpmdb_dir: Path to rpm database
+
+harness/lib_01_meta.sh :
+   
+    Shell meta-programming functions.
+   
+    Function get_value_of :
+	    Gets value of specified variable.
+	    This is useful when you need to construct variable name dynamically.
+	    Usage: abc=123; prefix=ab; suffix=c ; value="$(get_value_of "${prefix}${suffix}" "default_value")"
+	    If you don't specify default value and specified variable is not set then behavior is as per
+	    current setting of set -o.
+    Function _test_get_value_of :
+	    A test to verify get_value_of.
+    Function set_value_of :
+	    Sets value of specified variable.
+	    This is useful when you need to construct variable name dynamically.
+	    Usage: value=123; prefix=ab; suffix=c ; set_value_of "${prefix}${suffix}" "$value" ; echo "$abc"
+    Function _test_set_value_of :
+	    A test to verify set_value_of.
+    Function find_vars_by_pattern :
+	    Prints variables whose name match specified extended pattern.
+	    Usage: abc1=a ; abc2=b ; abc3=c ; for var in $(find_vars_by_pattern "abc.*") ; do get_value_of $var ; done
+    Function _test_find_vars_by_pattern :
+	    A test to verify find_vars_by_pattern.
+    Function is_defined :
+	    Checks if variable with specified name is defined.
+	    Usage: if ! if_defined "abc" ; then set_value_of "abc" 1 ; fi
+    Function _test_is_defined :
+	    A test to verify find_vars_by_pattern.
+	    This is useful when you need to construct variable name dynamically and
+	    want to avoid re-defining it if it's already set.
+
+harness/lib_02_log.sh :
+    Logging routines.
+   
+    Function get_time :
+	    Print current time.
+	    This function tries to mimic time stamps in log4j log files.
+	    Milliseconds are not provided.
+	    Usage: echo "$(get_time) Doing something"
+    Function debug :
+	    Print debug message.
+	    Message will not be printed if $debug is not set or is not true.
+	    Usage:
+	    debug [<message>]
+    Function info :
+	    Print informational message.
+	    Message will not be printed if $verbose is set and is not true.
+	    Usage:
+	    info [<message>]
+    Function error :
+	    Print error message.
+	    Usage:
+	    error [<message>]
+    Function error_exit :
+	    Print error message and exit with non zero exit code.
+	    Usage:
+	    error_exit [<message>]
+    Function dump_and_exit :
+	    Print message that error condition encountered, dump specified file
+	    and exit with non zero exit code.
+	    This can be used when output from command is redirected into
+	    file and test must fail if error happens to also dump
+	    command output from file.
+	    Usage: some_command > <file> 2>&1 || dump_and_exit <file> [<message>]
+    Function warning :
+	    Print warning message.
+	    Usage:
+	    warning [<message>]
+    Function warn :
+	    Print warning message.
+	    Usage:
+	    warn [<message>]
+
+harness/lib_03_dirs.sh :
+    Library that declares paths to necessary directories.
+    It automatically changes current directory to $work_dir
+   
+
+harness/lib_04_zombie.sh :
+    Functions to handle background processes.
+   
+    $kill_timeout: time in seconds between SIGTERM and SIGKILL signals are sent to processes
+    Function kill_processes :
+	    To all passed processes sends SIGTERM, waits and sends SIGKILL
+	    Usage: kill_processes pids
+    Function killtree :
+	    Politely terminates process and subprocesses.
+	    Usage: killtree pid
+	    Most probably you need to use kill_pid instead as killtree does not unregister the pid.
+    Function terminate_process :
+	    Sends process SIGTERM, waits and sends SIGKILL
+	    Usage: [gentle=true] terminate_process pid
+    Function register_pid :
+	    Writes passed pid to file for cleanup on error or normal exit
+	    Usage: register_pid pid
+    Function wait_pid :
+	    Waits for specified registered background process to finish.
+	    Automatically unregisters this pid.
+	    If timeout is specified and process is still active then this
+	    process and all subprocesses are killed and non-zero exit
+	    status is returned.
+	    Usage: [timeout=Nsec] wait_pid pid
+    Function unregister_pid :
+	    Unregisters previously registered background process.
+	    Usage: unregister_pid pid
+    Function kill_pid :
+	    Kills previously registered background process and subprocesses and unregisters it.
+	    Usage: kill_pid pid
+	    Most probably you need to use kill_registered instead to kill all registered processes.
+    Function kill_registered :
+	    Kills processes registered with register_pid
+	    Usage: kill_registered
+
+harness/lib_05_trap.sh :
+    Setups traps to handle errors and perform cleanups.
+   
+    Function get_proc_trace :
+	    Gets backtrace for current process (parent processes).
+	    Usage: backtrace="$(get_proc_trace)"
+    Function get_stack :
+	    Gets backtrace for current shell.
+	    Usage: backtrace="$(get_stack)"
+    Function execute_cleanup_hooks :
+	    Executes all cleanup hook scripts
+	    Usage: execute_cleanup_hooks
+    Function on_exit :
+	    Handles exit.
+    Function disable_traps :
+	    Disables traps on EXIT
+	    Usage: disable_traps
+    Function enable_traps :
+	    Enables traps on EXIT
+	    Usage: enable_traps
+
+harness/lib_06_test.sh :
+    Common test routines.
+    These routines are used for self documentation, report generation and
+    to provide engineer with diagnostic output during test execution.
+   
+    Example:
+    test_case_begin "Unpacking NOM distributable"
+    test_case_goal "Check that distributable can be unpacked using way documented for specific target platform"
+    test_case_type "Success scenario for main functionality"
+    annotate_action "Invoke command with invalid parameters"
+    # perform some actions here
+    annotate_check "Check that error message is about invalid parameters"
+    # perform some checks here
+    test_case_end
+   
+    Function test_case_begin :
+	    Mark start of test case.
+	    Usage: test_case_begin <test case name>
+    Function test_case_fails_execute :
+	    Execute test but mark it as failed in test report
+	    Usage: test_case_fails_execute "Fail reason"
+    Function test_case_fails_skip :
+	    Skip test (i. e. do not execute) and mark it as failed in test report
+	    Usage: test_case_fails_skip "Fail reason"
+    Function test_case_goal :
+	    Describe goal of current test case.
+	    Usage: test_case_goal <description of test goal>
+    Function test_case_type :
+	    Describe type of current test case.
+	    Examples of types are:
+	    Success scenario for main functionality
+	    Additional functionality
+	    Error handling
+	    Usage: test_case_type <type of test case>
+    Function test_case_end :
+	    Mark end of current test case.
+	    Usage: test_case_end
+    Function annotate_action :
+	    Mark test step action.
+	    Usage: annotate_action <action description>
+    Function annotate_check :
+	    Mark test step check.
+	    Usage: annotate_check <check description>
+    Function phase :
+	    Mark test phase.
+	    Usage: phase <phase name>
+    Function test_case_when :
+	    Run test only when application supports specified capability.
+	    Usage: test_case_when condition
+	    Example: test_case_when "$HAS_ADDITIONAL_TEXT_UPDATE && $HAS_PROBABLE_CAUSE_CUSTOMIZATION"
+		echo "$(get_time) Skipping test because application does not support required functionality..."
+
+harness/lib_07_various.sh :
+    Assorted heap of various things.
+   
+    Function get_file_size :
+	    Get file size in bytes.
+	    Usage: size=$(get_file_size file)
+    Function get_phrase_count_in_file :
+	    Get them number of phrase occurrences in file.
+	    Usage: get_phrase_count_in_file phrase [file]
+	    If file is not specified then $0.tmp is used by default
+    Function find_one_file_containing_all_phrases :
+	    Find in the specified directory the only file that contain all of specified phrases
+	    Usage: find_one_file_containing_all_phrases directory phrase1 [phrase2 ...]
+	    If more than one file with all specified phrases exist in the directory, then exit with error
+    Function atomic_copy :
+	    (Pseudo)atomically copies file to polled directory in a way
+	    that ensures that polling process sees whole file but not partial content.
+	    Usage: atomic_copy source target
+    Function print_file :
+	    Print file contents on stdout in eye-friendly manner
+	    Usage: [from=byte] print_file activemq.xml
+    Function get_performance_result_file_name :
+	    Gets the name of the file where performance test results should be written to.
+	    Usage: echo "10 event per sec" > $(get_performance_result_file_name)
+    Function print_performance_test_results :
+	    Implements common formatting of performance tests
+	    Usage: format_performance_test_results amount_of_messages time rate [type]
+    Function clean_dir :
+	    Cleans specified directory. Does not cause error if directory does not exist yet.
+	    Usage: clean_dir dir_name
+    Function sleep_short :
+	    Sleep for short period of time
+	    Usage: sleep_short
+    Function sleep_long :
+	    Sleep for long period of time
+	    Usage: sleep_long
+    Function sum_numbers :
+	    Calculate sum of numbers.
+	    Argument: set of numbers delimited with space or new-line symbol
+	    Usage: sum_numbers 1 2 3 4 5
+
+harness/lib_08_expect.sh :
+    Poor man's implementation of expect
+   
+    Function wait_for_input_prompt :
+	    Wait for expected input prompt in a file.
+	    Usage: [timeout=num_sec] wait_for_input_prompt prompt [file]
+	    Example:
+	    	test -f $0.tmp && rm $0.tmp
+	    	(wait_for_input_prompt "Your choice:" && echo 1) > interactive_command | tee $0.tmp
+
+harness/lib_09_portability.sh :
+    Portability library.
+   
+    $arch: H for HP-UX PA-RISC, I - HP-UX Itanium, L - Linux or Cygwin
+    on CYGWIN variable IS_CYGWIN is set to true
+    $patch: patch command with backup mode enabled
+    Function seq :
+		    Print sequence of numbers (for HP-UX).
+		    Usage:
+		    seq <start> <end>
+# Do not poison environment when calling a function inline with variable set: var=val func
+
+harness/lib_10_user.sh :
+    Automatically switches user if not run via CI.
+        If there is at least one definition of required user for any of the test sets
+        and this configuration was already loaded (as it should have been)
+        then current user will be checked to be the desired user
+        and test will be automatically restarted under required user if needed,
+        Desired user is determined via run_tests.sh --show-user CURRENT_TEST_NAME
+
+harness/lib_11_java.sh :
+   
+    Java detection.
+   
+    $JAVA, $JPS, $JMAP, $JINFO, $JSTACK, $KEYTOOL, $JCMD: paths to java tools.
+
+harness/lib_12_bench.sh :
+    A library that adds benchmarking capabilities.
+    Usage:
+      bench_start
+      something
+      duration=$(bench_duration)
+    Function bench_start :
+	    Starts measurement.
+	    Exports global variable with timestamp when measurement was started.
+	    Usage: bench_start
+    Function bench_duration :
+	    Returns duration elapsed from last bench_start.
+	    Returns an error if bench_start wasn't started yet or bench_duration was
+	    already executed for last bench_start call.
+	    Duration resolution is seconds.
+    Function get_epoch_milli :
+	    Returns number of milliseconds that have passed since start of the epoch.
+	    Usage: start_ms=$(get_epoch_milli)
+
+harness/lib_13_backup.sh :
+    A library with functions for handling of backups.
+    Function backup_file :
+	    Creates backup of a file by appending suffix to its name.
+	    Automatically restores a previous backup if one exists.
+	    Usage: [user=user] backup_file file
+    Function restore_file :
+	    Restores file from backup created by backup_file.
+	    Usage: [user=user] [fail_if_missing=true] restore_file file
+
+harness/lib_14_exec.sh :
+    Functions related to process/command execution.
+   
+    Function exec_expect_ok :
+	    Invoke command, expect zero exit code and redirect stdout/stderr to file
+	    Usage: exec_expect_ok command [output_file]
+	    If not specified then $0.tmp is used by default
+	    If $verbose_exec is set to false then output will not be printed if there is no error
+    Function exec_expect_error :
+	    Invoke command, check non-zero exit code and output to tmp file
+	    Usage: exec_expect_error command [output_file]
+	    If not specified then $0.tmp is used by default
+    Function as_user_linux :
+	    Runs specified command with provided arguments
+	    as specified user and in current directory.
+	    Usage: [environment_white_list="JAVA_HOME|^LC_.+"] as_user_linux user command [param1 ["p a r a m 2"]]
+
+harness/lib_15_check.sh :
+    Generic common check functions.
+   
+    Function check_file_contains_phrases :
+	    Check that file with command output contains phrases that match specified Perl regexp
+	    Usage: [silent=false] [quiet=false] [in_loop=false] [from=byte] check_file_contains_phrases FILE PERL_REGEXP1 [PERL_REGEXP2 ...]
+	    Does not prints anything when in_loop or quiet.
+    Function check_file_does_not_contain_phrases :
+	    Check that file with command output does not contain perl regexp.
+	    Usage: [quiet=false] [in_loop=false] [from=byte] check_file_does_not_contain_phrases FILE PERL_REGEXP1 [PERL_REGEXP2 ...]
+	    Does not prints anything when in_loop or quiet.
+    Function check_file_contains_phrase_count :
+	    Checks that phrase occurs in file specified amount of times.
+	    Usage: [quiet=false] [in_loop=false] check_file_contains_phrase_count phrase amount [file]
+	    Does not prints anything when in_loop or quiet.
+	    If file is not specified then $0.tmp is used by default.
+    Function check_file_exists :
+	    Checks if file exists
+	    Usage: [quiet=false] [in_loop=false] check_file_exists FILE
+	    Does not prints anything when in_loop or quiet.
+    Function check_file_does_not_exist :
+	    Checks if file does not exist
+	    Usage: [quiet=false] [in_loop=false] check_file_does_not_exist FILE
+	    Does not prints anything when in_loop or quiet.
+    Function check_dir_not_exist_or_empty :
+	    Checks that specified directory does not exist or is empty
+	    Usage: [quiet=false] [in_loop=false] check_dir_not_exist_or_empty dir
+	    Does not prints anything when in_loop or quiet.
+    Function check_file_contains_one_string_all_phrases :
+	    Check that file contains only one string with all specified perl regexp.
+	    Usage: [quiet=false] [in_loop=false] check_file_contains_one_string_all_phrases FILE PERL_REGEXP1 [PERL_REGEXP2 ...]
+	    Does not prints anything when in_loop or quiet.
+    Function check_exactly_one_file_in_dir :
+	    Checking that there is one and only one file in directory
+	    Usage: [quiet=false] [in_loop=false] check_exactly_one_file_in_dir directory_name
+	    Does not prints anything when in_loop or quiet.
+    Function check_dir_is_empty :
+	    Checks that directory is empty
+	    Usage: [quiet=false] [in_loop=false] check_dir_is_empty directory_name
+	    Does not prints anything when in_loop or quiet.
+    Function check_dir_is_not_empty :
+	    Checks that directory is not empty
+	    Usage: [quiet=false] [in_loop=false] check_dir_is_not_empty directory_name
+	    Does not prints anything when in_loop or quiet.
+    Function check_exist_file_with_phrase_in_dir_by_mask :
+	    Checks if there is a file with given pattern name and content in a directory.
+	    Handles large number of files when file name pattern would expand in too long line.
+	    Outputs names of found files.
+	    Usage: [quiet=false] [in_loop=false] check_exist_file_with_phrase_in_dir_by_mask file_content_pattern directory_name file_name_pattern
+	    Does not prints anything when in_loop or quiet.
+    Function check_user_root :
+	    Check that current user is root.
+	    Usage: [quiet=false] [in_loop=false] check_user_root
+	    Does not prints anything when in_loop or quiet.
+    Function check_log_file_for_problems :
+	    Looks through the specified file starting
+	    from specified position for specified message pattern.
+	    When found, tries to filter out messages that should be ignored if pattern_to_ignore is set.
+	    If after filtering messages set is not empty,
+	    prints what was left and exits with non zero code.
+	    Usage:
+	    [quiet=false] [in_loop=false] check_log_file_for_problems <file> <staring_position> <log_entry_regexp_mask> <pattern_to_find> [<pattern_to_ignore>]
+	    pattern_to_find does not support multilined patterns
+	    pattern_to_ignore supports multilined patterns, as '.' matches any symbol including '\n'
+	    You have to escape any / as \/
+	    Does not prints anything when in_loop or quiet.
+    Function check_permissions :
+	    Checks permissions of the specified directory and files located there.
+	    Usage:
+	    [quiet=false] [in_loop=false] check_permissions <dir> <expected directory permissions (in symbolic form)> <expected files permissions (in symbolic form)>
+	    Does not prints anything when in_loop or quiet.
+    Function check_permissions_single :
+	    Checks permissions of the specified file or directory.
+	    if directory is specified, it does not check content of the directory.
+	    Usage:
+	    [quiet=false] [in_loop=false] check_permissions_single <dir_or_file> <expected permissions (in symbolic form)>
+	    Does not prints anything when in_loop or quiet.
+    Function check_ownership :
+	    Checks that files and directories in the specified path has specified ownership.
+	    Usage:
+	    [quiet=false] [in_loop=false] check_ownership <dir> <expected owner>
+	    Does not prints anything when in_loop or quiet.
+
+harness/lib_16_wait.sh :
+    Generic functions to wait for a condition.
+   
+    Function wait_for_condition :
+	    Wait until some condition is true.
+	    Usage: [timeout=num_secs] [confidence=0] wait_for_condition 'grep pattern *'
+    Function wait_for_file_count_in_dir :
+	    Waits while specified count of files appears in specified directory.
+	    Usage: [timeout=num_secs] [confidence=0] wait_for_file_count_in_dir dir [count]
+	    Default value for count is 1
+
+harness/lib_17_jmeter.sh :
+    Functions to work with JMeter.
+   
+    Function extract_performance_data_from_jmeter :
+	    Get amount of samples, time taken and sample rate from
+	    JMeter's Generate Summary Results.
+	    Usage:
+	        jmeter > report
+	        perf_data=$(extract_performance_data_from_jmeter report)
+	        echo $perf_data
+	        Result: 524288 388s 1350.3
+    Function check_jmeter_summary_no_errors :
+	    Check if Jmeter output contains signs of errors.
+	    Requires "Generate Summary Results" listener to be used in test plan with default parameters.
+	    $0.tmp that is default output file used by exec_expect_ok is used as input file.
+	    General usage pattern is:
+	    exec_expect_ok "$jmeter params"
+	    check_jmeter_summary_no_errors [jmeter stdout file]
+    Function handle_jmeter_summary :
+	    Analyze, reformat and output results based on JMeter summary output
+	    Usage: handle_jmeter_summary jmeter_output_file threshold
+
+harness/lib_bootstrap.sh :
+    Set up test environment, load other libraries.
+   
+    Typical usage is to start harness script as
+    #!/usr/bin/env bash
+    . $(cd $(dirname $0) ; pwd)/lib_bootstrap.sh || ( echo "ERROR: Cannot bootstrap" ; exit 1 )
+   
+    In case of script in main directory use the following form
+    #!/usr/bin/env bash
+    . $(cd $(dirname $0) ; pwd)/harness/lib_bootstrap.sh || ( echo "ERROR: Cannot bootstrap" ; exit 1 )
+    $bin_dir : directory with test scripts
+    $harness_dir : directory with test harness scripts
+    $TESTS_DEBUG : set to true before bootstrapping to enable debug output
+    $TESTS_VERBOSE : set to false before bootstrapping to disable verbose output
+    $TESTS_PROFILE : set to true profile tests.
+    $PROFILE_LOCATION : path to file with tests profiling information.
+    Function reset_profile_result :
+	    reset_profile_result: Erases accumulated profiling information.
+    TEST_PROFILE_INFO: Associative map where keys are profiling point ID
+    and value is millis from epoch when profiling has started for this profiling point.
+    Function get_timestamp :
+	    get_timestamp: Prints milliseconds from start of the epoch.
+    Function start_profile :
+	    start_profile POINT_ID: Remember current time for profiling point with ID POINT_ID.
+    Function get_profile_duration :
+	    get_profile_duration POINT_ID: Prints milliseconds duration elapsed for profiling point with ID POINT_ID.
+    Function register_profile_result :
+	    register_profile_result POINT_ID: Adds into report profiling result for point with ID POINT_ID.
+    Function print_profile_result :
+	    print_profile_result: Prints IDs of profiling points that took most time.
+

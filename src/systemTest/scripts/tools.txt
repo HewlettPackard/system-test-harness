@@ -1,0 +1,55 @@
+Following tools are available:
+
+./begin_test_01_example_productA_remember_log_size.sh :
+    Saves size of the log file in the beginning of each test
+
+./begin_test_02_kill_registered.sh :
+    Kill all background processes started and registered by previous cases or when test case is re-run after failure.
+
+./_cleanup.sh :
+    A convenient tool to cleanup environment after tests from IDE.
+
+./end_test_01_example_productA_check_log_errors.sh :
+    Checks log file for log4j messages with ERROR log level at the end of each test
+
+./end_test_10_kill_registered.sh :
+    Kill all background processes started and registered by test case.
+
+./end_test_50_delete_temp_files.sh :
+    Delete temporary files.
+
+./hook_00_port_used_debug.sh :
+    Collects information about connections and processes to debug issues with resynchronization port being already used.
+
+./hook_12_example_productA_stop.sh :
+    Forcibly stops productA.
+
+./hook_20_example_productB_collect_logs.sh :
+    Copies ProductB logs to build directory before other hooks delete everything from Platform directory.
+    This greatly facilitates troubleshooting.
+
+./hook_20_example_productC_collect_logs.sh :
+    Copies productC logs to build directory before other hooks delete everything from Platform directory.
+    This greatly facilitates troubleshooting.
+
+./hook_51_example_productB_remove.sh :
+    Forcibly removes ProductB from Platform pkg database as it's impossible to skip pre-post scripts execution.
+
+./hook_51_example_productC_remove.sh :
+    Forcibly removes productC from Platform pkg database as it's impossible to skip pre-post scripts execution.
+
+./hook_65_example_cleanup_kafka.sh :
+    Make kafka topic list same way as after The Platform fresh install.
+
+./hook_98_port_used_debug.sh :
+    Collects information about connections and processes to debug issues with resynchronization port being already used.
+
+./hook_99_ci_multihost.sh :
+    Renames working directory to a test run specific name so it can be properly archived on jenkins.
+
+./_prepare.sh :
+    A convenient tool to prepare environment for testing from IDE.
+
+./_recover.sh :
+    A convenient tool to recover environment after failed tests from IDE.
+

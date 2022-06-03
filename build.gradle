@@ -1,0 +1,500 @@
+import org.apache.tools.ant.filters.FixCrLfFilter
+import org.apache.tools.ant.filters.ReplaceTokens
+
+import java.util.regex.Matcher
+
+/**
+ * We'll use Groovy to define some of the complex test scenarios.
+ */
+plugins {
+    id 'groovy'
+}
+/**
+ * You can define here any common properties you can reuse in multiple other places.
+ * Like versions of the products to be used or something like that.
+ * Those properties can later be used in test scripts.
+ */
+rootProject.ext {
+}
+/**
+ * Test scripts are in src/systemTest/scripts.
+ * They're intentionally not exactly as Gradle expects.
+ * The harness can be used with Maven or other build tool or even without any build tool.
+ * Gradle is really just to fetch any dependencies and is not really essential.
+ * What's important is inside src/systemTest/scripts.
+ */
+sourceSets {
+    simulator {
+        // Sources and resources of simulator
+        resources {
+            srcDirs = []
+        }
+        java {
+            srcDirs = []
+        }
+        groovy {
+            srcDirs = []
+            srcDirs += files("src/systemTest/scripts/simulator")
+        }
+    }
+    systemTest {
+        // Resources for system tests
+        java {
+            srcDirs = []
+        }
+        groovy {
+            srcDirs = []
+            srcDirs += files("src/systemTest/scripts/")
+            exclude 'data/**'
+            exclude 'simulator/**'
+        }
+    }
+}
+/**
+ * We test deliverables of products (one or many).
+ * Those are kits.
+ * Can be .rpm, .tar.gz or whatever is delivered to customer.
+ *
+ * We can also have test archives built with products.
+ * This can be some test data or test tools or test classes we do not want to build during system tests but
+ * want to build with the product (for example to align with the versions of libraries used in product).
+ *
+ * We could, potentially, have extra JARs as dependencies.
+ * But you might want to avoid this if you need to be sure that you have in tests exactly the classpath
+ * that will be there in production for extra trust in your tests.
+ */
+configurations {
+    kits {}
+    testArchives {}
+    systemTestImplementation.extendsFrom(simulatorImplementation)
+}
+/**
+ * This specifies where we'll download dependencies from.
+ */
+repositories {
+    mavenLocal()
+    mavenCentral()
+}
+/**
+ * This defines dependencies themselves.
+ */
+dependencies {
+    // Distributions of products to be tested together.
+    // kits "com.example:productA:1.0.0:@tar.gz"
+    // kits "com.example:productB:2.0.0:@tar.gz"
+    // kits "com.example:productC:3.0.0:@tar.gz"
+    //
+    // Any system test archives that come with the products (optional).
+    // For example, this could be some test data or some test libraries or any test tools specific
+    // to the particular product.
+    // testArchives "com.example:productA:1.0.0:systemTest"
+    // testArchives "com.example:productB:2.0.0:systemTest"
+    // testArchives "com.example:productC:3.0.0:systemTest"
+    //
+    // If you use simulator script implemented in Groovy
+    // then simulatorImplementation will define its classpath.
+    simulatorImplementation platform('org.apache.groovy:groovy-bom:4.0.2')
+    simulatorImplementation platform('org.apache.logging.log4j:log4j-bom:2.17.2')
+    simulatorImplementation platform('org.apache.camel:camel-bom:3.14.3')
+    simulatorImplementation platform('org.eclipse.jetty:jetty-bom:9.4.40.v20210413')
+    simulatorImplementation platform('org.junit:junit-bom:5.8.2')
+    simulatorImplementation 'org.apache.groovy:groovy'
+    simulatorImplementation 'org.apache.groovy:groovy-datetime'
+    simulatorImplementation 'org.apache.groovy:groovy-dateutil'
+    simulatorImplementation 'org.apache.groovy:groovy-jmx'
+    simulatorImplementation 'org.apache.groovy:groovy-json'
+    simulatorImplementation 'org.apache.groovy:groovy-nio'
+    simulatorImplementation 'org.apache.groovy:groovy-xml'
+    simulatorImplementation 'commons-io:commons-io:2.11.0'
+    simulatorImplementation "org.apache.commons:commons-exec:1.3"
+    simulatorImplementation 'org.apache.commons:commons-lang3:3.12.0'
+    simulatorImplementation 'org.apache.commons:commons-collections4:4.4'
+    simulatorImplementation 'org.apache.commons:commons-text:1.9'
+    simulatorImplementation 'org.apache.logging.log4j:log4j-core'
+    simulatorImplementation 'org.apache.logging.log4j:log4j-api'
+    simulatorImplementation "org.apache.camel:camel-direct"
+    simulatorImplementation "org.apache.camel:camel-endpointdsl"
+    simulatorImplementation "org.apache.camel:camel-componentdsl"
+    simulatorImplementation "org.apache.camel:camel-log"
+    simulatorImplementation "org.apache.camel:camel-management"
+    simulatorImplementation "org.apache.camel:camel-timer"
+    simulatorImplementation "org.apache.camel:camel-seda"
+    simulatorImplementation "org.apache.camel:camel-metrics"
+    simulatorImplementation "org.apache.camel:camel-jetty"
+    simulatorImplementation "org.apache.camel:camel-http"
+    simulatorImplementation "org.apache.camel:camel-mock"
+    simulatorImplementation "org.apache.camel:camel-test"
+    simulatorImplementation 'org.apache.groovy:groovy-cli-picocli'
+    simulatorImplementation "org.apache.groovy:groovy-test"
+    simulatorImplementation "org.junit.jupiter:junit-jupiter"
+    simulatorImplementation "org.junit.vintage:junit-vintage-engine"
+    simulatorImplementation "com.google.code.findbugs:jsr305:3.0.2"
+    // Class path to be used by system tests.
+    // If case you need it to be different from simulatorImplementation.
+    // systemTestImplementation "com.example:productA:1.0.0:systemTest"
+    systemTestImplementation sourceSets.simulator.output
+}
+
+/*
+ * The files in src/systemTest/resources can use @{placeholders} 
+ * that will be replaced with properties from project.ext.
+ * This can be used to inject product versions or any extra information calculated during build phase.
+ */
+rootProject.ext.resourcesProperties = {
+    [
+            tokens    : (rootProject.extensions.extraProperties.properties +
+                    [
+                    ]).collectEntries { [it.key as String, it.value as String] },
+            beginToken: '@{',
+            endToken  : '}',
+    ]
+}
+/*
+ * Additionally, we add buildDir, projectDir, tmpDir properties that will point to proper Gradle directories
+ * so system tests conform with Gradle expectations.
+ * If Gradle is replaced with Maven or any other build tool (or nor build tool at all)
+ * then the scripts can be easily adapted just by changing those variables to the new tool expectations.
+ */
+rootProject.ext.testResourcesProperties = {
+    [
+            tokens    : [
+                    buildDir  : buildDir.absolutePath,
+                    projectDir: rootDir.absolutePath,
+                    tmpDir    : "${buildDir.absolutePath}/tmp",
+            ].collectEntries { [it.key as String, it.value as String] },
+            beginToken: '@{',
+            endToken  : '}',
+    ]
+}
+/**
+ * Now, we can inject our properties to files in src/systemTest/resources.
+ * Those can be later found in build/resources/systemTest.
+ */
+def configureFilters = { AbstractCopyTask copy ->
+    copy.filter(FixCrLfFilter)
+    // Repeat the filter to inject property definitions first and then property values
+    (1..2).each {
+        copy.filter(copy.project.ext.resourcesProperties.call(), ReplaceTokens)
+    }
+}
+rootProject.tasks.findAll { it instanceof ProcessResources }.each { ProcessResources it ->
+    if (it.name ==~ /process.*Resources/) {
+        rootProject.logger.info("Injecting filters into $it")
+        configureFilters it
+    }
+}
+processSystemTestResources {
+    filter(rootProject.ext.testResourcesProperties.call(), ReplaceTokens)
+    build.dependsOn processSystemTestResources
+}
+/**
+ * This ensures that we did not accidentally leave some unresolved placeholder in a resource file.
+ */
+task checkNoPlaceholders {
+    description "Check that output resources have no unresolved placeholders"
+    group "verification"
+    inputs.files {
+        fileTree("build/resources").tap {
+            it.exclude(
+                    "**/*.jar",
+                    "**/*.tar",
+                    "**/*.gz",
+                    "**/*.zip",
+                    "**/*.png",
+            )
+        }.files
+    }
+    doLast {
+        assert inputs.files.files.every {
+            def matcher = it.text =~ /(@\{.+?})/
+            if (matcher.find()) {
+                project.logger.error("$it has unresolved placeholder: ${matcher.group()}")
+                false
+            } else {
+                true
+            }
+        }: "There are unresolved placeholders"
+    }
+    dependsOn rootProject.tasks.findAll { it instanceof ProcessResources && it.name ==~ /process.*Resources/ }
+}
+check.dependsOn checkNoPlaceholders
+
+/**
+ * Since those are just tests, we do not need to produce jar file from our sources.
+ */
+jar.enabled = false
+
+/**
+ * Here we grab those test Groovy scripts dependencies, download them and put those JAR files
+ * to where they could be found by test scripts later.
+ */
+task copySystemTestDependencies {
+    description "Copies system test dependencies"
+    doLast {
+        File targetDir = file(project.sourceSets.systemTest.output.resourcesDir)
+        targetDir.mkdirs()
+            copy {
+                from configurations.systemTestRuntimeClasspath
+                into "${project.buildDir}/libs/simulator"
+            }
+    }
+    tasks.named("build").configure { it.dependsOn copySystemTestDependencies }
+}
+/**
+ * In this example, we download and unpack test archives that came with
+ * the products so we can use individual files from them later.
+ * You can adjust regexp to define which files to unpack and which to leave intact.
+ */
+task unpackTestResources(type: Copy) {
+    description "Unpacks test resources jars"
+    group "verification"
+    configurations.testArchives.each { File file ->
+        Matcher matcher = file =~ $/.*/([^/]+)-[\d\.]+(?:-SNAPSHOT)?(-systemTest).jar/$
+        if (matcher.matches()) {
+            from(zipTree(file), {
+                into("${matcher.group(1)}${matcher.group(2)}")
+            })
+        }
+    }
+    destinationDir = jar.destinationDirectory.get().asFile
+    build.dependsOn unpackTestResources
+}
+/**
+ * Here we download and copy kits of products to where test scripts will see them.
+ *
+ * Each kit will be in its own directory as per regexp.
+ * This regexp might need to be adjusted as per naming of your kit files.
+ * In this example, they look like the following:
+ * PREFIX_productA-VERSION.tar.gz
+ * PREFIX_productB-VERSION-SNAPSHOT.tar.gz
+ * PREFIX_productC-VERSION.tar.gz
+ * The resulting structure is the following:
+ * productA/PREFIX_productA-VERSION.tar.gz
+ * productB/PREFIX_productB-VERSION-SNAPSHOT.tar.gz
+ * productC/PREFIX_productC-VERSION.tar.gz
+ */
+task copyKits(type: Copy) {
+    description "Copies products kits"
+    group "verification"
+    configurations.kits.each { File file ->
+        from(file, {
+            into((file =~ $/.*/(?:[^/]+_)?(productA|productB|productC)-[\d\.]+(?:-SNAPSHOT)?.tar.gz/$)[0][1])
+        })
+    }
+    destinationDir = jar.destinationDirectory.get().asFile
+    build.dependsOn copyKits
+}
+/**
+ * Here we verify test environment for compliance with the expectations.
+ * All the actual work is done in corresponding check_env.sh.
+ * check_env.sh script might have come from test archive of one or more products.
+ * Also, we could have check_env.sh script within this system test project.
+ * The following example illustrates that productA and productB have some system
+ * requirements checked by their check_env.sh scripts, that those scripts come
+ * from test archives of those products and we call them here to ensure
+ * that the current test environment complies with their system requirements.
+ * You can find example of such script in src/example.
+ * This is helpful to avoid test failures caused by test environment mismatch.
+ */
+task checkEnvTest {
+    description "Verify environment conforms to system test requirements"
+    group "verification"
+    doLast {
+        exec {
+            executable "/bin/bash"
+            args "-c", "src/example/check_env.sh A002test"
+        }
+//        exec {
+//            executable "/bin/bash"
+//            args "-c", "build/libs/*_productA-systemTest/check_env.sh A001test"
+//        }
+//        exec {
+//            executable "/bin/bash"
+//            args "-c", "build/libs/*_productB-systemTest/check_env.sh B002test"
+//        }
+    }
+    dependsOn unpackTestResources
+    check.dependsOn checkEnvTest
+}
+
+/**
+ * This is a convenience task to recover environment from IDE.
+ * This is really just calling a shell script.
+ */
+task systemTestRecover {
+    description "Cleanup system test environment"
+    group "verification"
+    doLast {
+        exec {
+            workingDir file("src/systemTest/scripts/")
+            executable "/bin/bash"
+            args "-c", "./_recover.sh"
+        }
+    }
+    dependsOn processSystemTestResources
+}
+/**
+ * This is a convenience task to prepare environment from IDE.
+ * This is really just calling a shell script.
+ */
+task prepare {
+    description "Prepare environment to run system tests (global prepare)"
+    group "verification"
+    doLast {
+        exec {
+            workingDir file("src/systemTest/scripts/")
+            executable "/bin/bash"
+            args "-c", "./harness/run_tests.sh --prepare"
+        }
+    }
+    dependsOn build, checkEnvTest
+}
+/**
+ * This is a convenience task to run smoke (quick) tests from IDE.
+ * This is really just calling a shell script.
+ */
+task systemTestSmoke {
+    description "Run quick smoke tests to check application minimally working"
+    group "verification"
+    doLast {
+        exec {
+            workingDir file("src/systemTest/scripts/")
+            executable "/bin/bash"
+            args "-c", "./harness/run_tests.sh --smoke"
+        }
+    }
+    dependsOn build, checkEnvTest
+}
+/**
+ * This is a convenience task to run all tests from one of test sets from IDE.
+ * This is really just calling a shell script.
+ */
+task systemTestRt {
+    description "Runs real-time events system tests"
+    group "verification"
+    doLast {
+        exec {
+            workingDir file("src/systemTest/scripts/")
+            executable "/bin/bash"
+            args "-c", "./harness/run_tests.sh --rt"
+        }
+    }
+    dependsOn build, checkEnvTest
+}
+/**
+ * This is a convenience task to prepare environment from IDE to run a particular test script
+ * in one of test sets (called rt).
+ * This is really just calling a shell script.
+ */
+task prepareRt {
+    description "Prepare environment to run real-time events test case (includes test set specific prepare)"
+    group "verification"
+    doLast {
+        file("src/systemTest/scripts").listFiles().sort().findAll {
+            it.file && it.name =~ /test_20\d\d_.+\.sh/
+        }.each { script ->
+            exec {
+                workingDir file("src/systemTest/scripts/")
+                executable "/bin/bash"
+                args "-c", script.absolutePath
+            }
+        }
+    }
+    dependsOn build, prepare
+}
+/**
+ * This is a convenience task to run all tests from all test sets from IDE.
+ * This is really just calling a shell script.
+ */
+task systemTestAll {
+    description "Runs all system tests"
+    group "verification"
+    dependsOn build, checkEnvTest, systemTestRt//, systemTestResync, systemTestCommands
+}
+
+/**
+ * This will automatically format all shell scripts to make it easier for multiple people to work on them.
+ */
+task formatShell {
+    description "Format system test scripts"
+    File formatter = file("buildSrc/src/resources/formatshell.pl")
+    inputs.files fileTree("src/").tap { it.include("**/*.sh") }.files
+    inputs.files fileTree("src/").tap { it.include("**/*.pl") }.files
+    inputs.files formatter
+    outputs.files inputs.files
+    doLast {
+        exec {
+            executable "/bin/bash"
+            args "-c", "perl -W $formatter --tab " +
+                    inputs.files.files.findAll { it.name.endsWith(".pl") }.collect { it.path }.join(" ")
+        }
+        exec {
+            executable "/bin/bash"
+            args "-c", "perl -W $formatter --tab --sh " +
+                    inputs.files.files.findAll { it.name.endsWith(".sh") }.collect { it.path }.join(" ")
+        }
+    }
+    processSystemTestResources.dependsOn formatShell
+}
+
+/**
+ * When we run the usual ./gradlew build
+ * It will process (filter) test resources and fetch the kits of products so we are ready to run test scripts.
+ */
+tasks.named("build").configure { it.dependsOn processSystemTestResources }
+
+/**
+ * This will extract summary from every test script and put it in tests.txt.
+ * This can be convenient to take quick overview of all test scripts.
+ */
+task updateSystemTestSummary {
+    description "Generate summary description for system tests"
+    group "documentation"
+    inputs.files fileTree("src/systemTest/scripts/").tap {
+        it.include("**/*.sh")
+        it.include("**/*.groovy")
+    }.files
+    inputs.files file("src/systemTest/scripts/harness/extract_test_doc.pl")
+    outputs.file "src/systemTest/scripts/harness/libraries.txt"
+    outputs.file "src/systemTest/scripts/libraries.txt"
+    doLast {
+        exec {
+            workingDir file("src/systemTest/scripts/")
+            executable "/bin/bash"
+            args "./harness/generate_summary_doc.sh", "--quiet"
+        }
+    }
+    dependsOn processSystemTestResources, unpackTestResources
+    build.dependsOn updateSystemTestSummary
+}
+/**
+ * This will generate system test report and system test specification as HTML files.
+ * System test report assumes that all the tests have passed unless they were marked as not passing.
+ * The tests should run on CI and the failed build must be fixed.
+ * Then system test report would be accurate.
+ * Information for system test specification and system test report are extracted from
+ * test scripts using annotations like test_case_begin and annotate_check.
+ * This covers both shell and groovy files.
+ */
+task updateStsStr {
+    description "Update system test specification and system test report"
+    group "documentation"
+    inputs.files fileTree("src/systemTest/scripts/").tap { it.include("**/*.sh") }.files
+    outputs.file "build/tmp/systemTest/doc/ts.html"
+    outputs.file "build/tmp/systemTest/doc/tr.html"
+    doLast {
+        exec {
+            workingDir file("src/systemTest/scripts/")
+            executable "/bin/bash"
+            args "./harness/generate_sts_str.sh"
+        }
+    }
+    dependsOn processSystemTestResources
+}
+
+/**
+ * This makes it easier to edit Gradle scripts in IDE.
+ */
+wrapper {
+    distributionType = Wrapper.DistributionType.ALL
+}
