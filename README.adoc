@@ -255,3 +255,331 @@ There are few library classes that facilitate writing actions and checks with Gr
 * link:src/systemTest/scripts/simulator/LibWait.groovy[]
 
 However, Groovy itself is rich and you can use any Java library like link:http://hamcrest.org/JavaHamcrest/tutorial[Hamcrest] matchers or link:https://github.com/lukas-krecan/JsonUnit[JsonUnit]. Of course, you can use link:https://camel.apache.org/[Camel] to quickly tap into or simulate other systems.
+
+== Running tests
+
+The main entry point to run tests is `run_tests.sh`. You can run just all test cases the following way:
+
+[source,bash]
+----
+./harness/run_tests.sh
+----
+
+or
+
+[source,bash]
+----
+src/systemTest/scripts/harness/run_tests.sh
+----
+
+The initial directory does not matter.
+
+If any of the test cases fails then testing process stops and the script will return non-zero exit code, so you can easily detect the failure from CI. However, global cleanup hooks will run as described in <<Hooks>>. You can prevent running global cleanup hooks by setting `do_traps=false` the following way:
+
+[source,bash]
+----
+do_traps=false harness/run_tests.sh
+----
+
+Instead of running just all test cases, it is much more useful to run all test cases from a particular test set. Test sets are defined in link:src/systemTest/scripts/cfg_tests.sh[] as described in <<Test sets>>. To run a particular test set, you specify its name as a parameter. The following example illustrates how to run all test cases from a set called `rt`:
+
+[source,bash]
+----
+./harness/run_tests.sh --rt
+----
+
+All test sets defined in link:src/systemTest/scripts/cfg_tests.sh[cfg_tests.sh] can be listed using `--list` option the following way:
+
+[source,bash]
+----
+[user@vm scripts]$ ./harness/run_tests.sh --list
+--prepare
+--cleanup
+--smoke
+--rt
+--resync
+--ack
+--commands
+--multi_ems
+--default
+----
+
+You can use `--dry` option to see which tests will be run without actually running them:
+
+|===
+|One test set |Another test set
+
+a|
+[source,bash]
+----
+[user@vm scripts]$ ./harness/run_tests.sh --rt --dry
+
+____________________________________________
+Running test case test_0000_profile_bootstrap.sh as
+____________________________________________
+
+
+____________________________________________
+Running test case test_0200_prepare_productA_kit_install.sh as
+____________________________________________
+
+
+____________________________________________
+Running test case test_0200_prepare_productB_kit_install.sh as
+____________________________________________
+
+
+____________________________________________
+Running test case test_0211_prepare_productB_config.sh as
+____________________________________________
+
+
+____________________________________________
+Running test case test_0220_prepare_productC_kit_install.sh as
+____________________________________________
+
+
+____________________________________________
+Running test case test_0401_prepare_simulator.sh as
+____________________________________________
+
+
+____________________________________________
+Running test case test_0402_prepare_productA_config.sh as
+____________________________________________
+
+
+____________________________________________
+Running test case test_0403_prepare_productA_start.sh as
+____________________________________________
+
+
+____________________________________________
+Running test case test_2102_rt_raise_max_fields.sh as
+____________________________________________
+
+
+____________________________________________
+Running test case test_2120_rt_clear.sh as
+____________________________________________
+
+
+____________________________________________
+Running test case test_9500_remove_productA.sh as
+____________________________________________
+
+
+____________________________________________
+Running test case test_9790_remove_productC.sh as
+____________________________________________
+
+
+____________________________________________
+Running test case test_9795_remove_productB.sh as
+____________________________________________
+
+All tests passed
+Tests took 0 minutes
+----
+a|
+[source,bash]
+----
+[user@vm scripts]$ ./harness/run_tests.sh --resync --dry
+
+____________________________________________
+Running test case test_0000_profile_bootstrap.sh as
+____________________________________________
+
+
+____________________________________________
+Running test case test_0200_prepare_productA_kit_install.sh as
+____________________________________________
+
+
+____________________________________________
+Running test case test_0200_prepare_productB_kit_install.sh as
+____________________________________________
+
+
+____________________________________________
+Running test case test_0211_prepare_productB_config.sh as
+____________________________________________
+
+
+____________________________________________
+Running test case test_0220_prepare_productC_kit_install.sh as
+____________________________________________
+
+
+____________________________________________
+Running test case test_0401_prepare_simulator.sh as
+____________________________________________
+
+
+____________________________________________
+Running test case test_0402_prepare_productA_config.sh as
+____________________________________________
+
+
+____________________________________________
+Running test case test_0403_prepare_productA_start.sh as
+____________________________________________
+
+
+____________________________________________
+Running test case test_3110_resync_one_chunk_translation.sh as
+____________________________________________
+
+
+____________________________________________
+Running test case test_3130_resync_multi_chunk.sh as
+____________________________________________
+
+
+____________________________________________
+Running test case test_9500_remove_productA.sh as
+____________________________________________
+
+
+____________________________________________
+Running test case test_9790_remove_productC.sh as
+____________________________________________
+
+
+____________________________________________
+Running test case test_9795_remove_productB.sh as
+____________________________________________
+
+All tests passed
+Tests took 0 minutes
+----
+
+|===
+
+There are other options which allow you to further select which tests to run. You can see them using `--help`:
+[source,bash]
+----
+[user@vm scripts]$ ./harness/run_tests.sh --help
+ Run all or group of tests.
+ To disable cleanup on exit set do_traps environment variable to false:
+     do_traps=false harness/run_tests.sh
+ To run specific test that requires preparation or resume testing from some point
+ use something like the following:
+     do_traps=false harness/run_tests.sh --prepare && harness/run_tests.sh --from 3500
+ --skip <pattern>
+     Skip tests matching specified pattern
+ --stop-before <test number>
+     Stop running tests before specified one.
+     Traps are automatically disabled.
+ --from <test number>
+     Skip tests before specified one
+ --dry
+     Print tests names but dont run anything
+ --show-filter
+     Shows list of tests to be run in shell friendly format.
+     Nothing gets actually run.
+ --list
+     Shows all available test filters
+ --help
+     Shows usage information
+ --show-user test_name_pattern
+     Show user under which to run specified test
+ --<filter name>
+     Run tests defined by specified filter.
+     Filters should be specified in cfg_tests.sh.
+     See description of cfg_tests.sh for filters details.
+----
+
+Another way to run tests is just to manually invoke them one-by-one:
+
+[source,bash]
+----
+[user@vm scripts]$ ./test_0200_prepare_productA_kit_install.sh
+----
+
+Again, it does not matter which directory you are in if test cases do proper bootstrap as described in <<The harness>>.
+
+[source,bash]
+----
+[user@vm system-test-harness]$ src/systemTest/scripts/test_0200_prepare_productA_kit_install.sh
+----
+
+When you do manual test run to troubleshoot test failure or adding a new feature and test to run a small set of selected test cases then the following procedure works best:
+
+. Prepare test environment by installing all the necessary products and doing their initial configuration:
++
+[source,bash]
+----
+./harness/run_tests.sh --prepare
+----
++
+[NOTE]
+====
+You can turn off global cleanup hooks to debug failures during preparation the following way:
+[source,bash]
+----
+do_traps=false ./harness/run_tests.sh --prepare
+----
+====
+. Run individual test cases for concerned functionality
++
+NOTE: Global cleanup hooks will not run when those test cases fail. This is intentional to make it easy to troubleshoot test failures.
++
+[source,bash]
+----
+./test_2102_rt_raise_max_fields.sh
+./test_4111_rt_ack_unack_max_fields.sh
+----
+. Optionally, you can gracefully uninstall the products from test environment
++
+[source,bash]
+----
+./harness/run_tests.sh --cleanup
+----
+. Or you can just trigger global cleanup hooks that should remove products under test and cleanup the environment anyway
++
+[source,bash]
+----
+./harness/recover.sh
+----
+
+[NOTE]
+====
+`prepare` and `cleanup` are not magic. Those are just another test sets you define in link:src/systemTest/scripts/cfg_tests.sh[cfg_tests.sh].
+====
+
+[NOTE]
+====
+`recover.sh` is not a magic and does not know how to properly uninstall the products and revert the environment to pristine state suitable for running tests again. You'll have to write hooks tht revert every file or configuration changes made by tests that are outside of tests working directory. See <<Hooks>> for additional information about global cleanup hooks.
+
+To make things easier, consider installing products inside tests working directory.
+====
+
+For convenience, you can define tasks in Gradle that invoke `run_tests.sh` with corresponding test set names. Then it is very easy to run tests from IDE. link:build.gradle[] contains several such examples:
+
+* systemTestRecover
+* prepare
+* systemTestSmoke
+* systemTestRt
+* systemTestAll
+
+You can run multiple test sets in parallel on Jenkins using the following excerpt for `Jenkinsfile`:
+
+[source,groovy]
+----
+List<String> testSetNames = ["--rt", "--resync", "--multi_ems", "--commands", "--ack"]
+
+def testSets = [:]
+for (int j = 0; j < testSetNames.size(); j++) {
+    def testSetName = testSetNames[j]
+    testSets[testSetName] = {
+        stage(testSetName) {
+            node("A label for nodes where you want to run tests") {
+                //checkout
+                sh "src/systemTest/scripts/harness/run_tests.sh $testSetName"
+            }
+        }
+    }
+}
+parallel testSets
+----
