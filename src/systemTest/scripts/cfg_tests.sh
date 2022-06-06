@@ -18,7 +18,7 @@ cfg_name="Integration tests"
 ###     cfg_filter_flags_<test set name>="<flags>"
 ###   Flags could be:
 ###     disable_traps - if test set fails then no hooks are run
-###   Required used:
+###   Required user:
 ###     cfg_filter_user_<test set name>="<user name>"
 ###     If required user is not set then user is not checked or changed automatically.
 
